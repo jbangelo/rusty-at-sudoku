@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 itertools = "0.10"
 rayon = "1"
+
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+jemallocator = "0.3.2"
