@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read};
 
@@ -66,10 +67,6 @@ impl Sudoku {
         self.fields[index] = Filled(value);
     }
 
-    fn clear_field(&mut self, index: usize) {
-        self.fields[index] = Empty;
-    }
-
     pub fn into_iter(self) -> impl Iterator<Item = Field> {
         self.fields.into_iter()
     }
@@ -100,11 +97,11 @@ impl Sudoku {
             .collect()
     }
 
-    pub fn solve(mut self) -> Sudoku {
-        Self::solve_impl(&mut self).unwrap()
+    pub fn solve(self) -> Sudoku {
+        Self::solve_impl(self.clone()).unwrap()
     }
 
-    fn solve_impl(puzzle: &mut Sudoku) -> Option<Sudoku> {
+    fn solve_impl(puzzle: Sudoku) -> Option<Sudoku> {
         let index = puzzle.get_first_empty_index();
 
         match index {
@@ -117,17 +114,15 @@ impl Sudoku {
             }
             Some(index) => {
                 let possible_values = puzzle.get_possible_values(index);
-                possible_values
-                    .into_iter()
-                    .find_map(|value| {
-                        puzzle.set_field(index, value);
-                        if let Some(answer) = Self::solve_impl(puzzle) {
-                            return Some(answer);
-                        } else {
-                            puzzle.clear_field(index);
-                            None
-                        }
-                    })
+                possible_values.into_par_iter().find_map_first(|value| {
+                    let mut puzzle = puzzle.clone();
+                    puzzle.set_field(index, value);
+                    if let Some(answer) = Self::solve_impl(puzzle) {
+                        return Some(answer);
+                    } else {
+                        None
+                    }
+                })
             }
         }
     }
