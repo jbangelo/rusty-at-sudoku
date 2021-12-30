@@ -66,6 +66,10 @@ impl Sudoku {
         self.fields[index] = Filled(value);
     }
 
+    fn clear_field(&mut self, index: usize) {
+        self.fields[index] = Empty;
+    }
+
     pub fn into_iter(self) -> impl Iterator<Item = Field> {
         self.fields.into_iter()
     }
@@ -86,27 +90,27 @@ impl Sudoku {
 
         possible_values
             .into_iter()
-            .filter(|value| {
-                let not_in_row = !row.into_iter().contains(&Filled(*value));
-                let not_in_col = !col.into_iter().contains(&Filled(*value));
-                let not_in_square = !square.into_iter().contains(&Filled(*value));
+            .filter(|&value| {
+                let not_in_row = !row.into_iter().contains(&Filled(value));
+                let not_in_col = !col.into_iter().contains(&Filled(value));
+                let not_in_square = !square.into_iter().contains(&Filled(value));
 
                 not_in_row && not_in_col && not_in_square
             })
             .collect()
     }
 
-    pub fn solve(self) -> Sudoku {
-        Self::solve_impl(self).unwrap()
+    pub fn solve(mut self) -> Sudoku {
+        Self::solve_impl(&mut self).unwrap()
     }
 
-    fn solve_impl(puzzle: Sudoku) -> Option<Sudoku> {
+    fn solve_impl(puzzle: &mut Sudoku) -> Option<Sudoku> {
         let index = puzzle.get_first_empty_index();
 
         match index {
             None => {
                 if puzzle.is_valid() {
-                    Some(puzzle)
+                    Some(puzzle.clone())
                 } else {
                     None
                 }
@@ -115,16 +119,12 @@ impl Sudoku {
                 let possible_values = puzzle.get_possible_values(index);
                 possible_values
                     .into_iter()
-                    .fold(None, |prev_result, value| {
-                        if prev_result.is_some() {
-                            return prev_result;
-                        }
-
-                        let mut puzzle = puzzle.clone();
+                    .find_map(|value| {
                         puzzle.set_field(index, value);
                         if let Some(answer) = Self::solve_impl(puzzle) {
                             return Some(answer);
                         } else {
+                            puzzle.clear_field(index);
                             None
                         }
                     })
